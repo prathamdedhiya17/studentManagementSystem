@@ -1,24 +1,41 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 export function middleware(req: NextRequest) {
-  const auth = req.cookies.get('auth')?.value
-  const isLoggedIn = auth === 'logged-in'
+    const cookieValue = req.cookies.get('auth')?.value;
 
-  const path = req.nextUrl.pathname
-  const isPublic = path === '/' || path === '/login'
+    let isLoggedIn = false;
+    let isAdmin = false;
 
-  if (!isLoggedIn && !isPublic) {
-    return NextResponse.redirect(new URL('/', req.url))
-  }
+    if (cookieValue) {
+        try {
+            const parsed = JSON.parse(cookieValue);
+            isLoggedIn = true;
+            isAdmin = parsed.isAdmin === true;
+        } catch (e) {
+            console.error('Invalid auth cookie:', e);
+        }
+    }
 
-  if (isLoggedIn && path === '/login') {
-    return NextResponse.redirect(new URL('/', req.url))
-  }
+    const path = req.nextUrl.pathname;
 
-  return NextResponse.next()
+    // User not logged in: force them to "/"
+    if (!isLoggedIn && path !== '/') {
+        return NextResponse.redirect(new URL('/', req.url));
+    }
+
+    // User logged in and trying to access "/": redirect them properly
+    if (isLoggedIn && path === '/') {
+        const target = isAdmin ? '/admin' : '/student';
+        return NextResponse.redirect(new URL(target, req.url));
+    }
+
+    // Everything else: allow
+    return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|assets|images|fonts|.*\\.css$).*)'],
-}
+    matcher: [
+        '/((?!api|_next/static|_next/image|favicon.ico|assets|images|fonts|.*\\.css$).*)',
+    ],
+};

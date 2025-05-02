@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
 
         // Replace this with your actual DB/auth logic
         const validUser =
-            email === 'test@example.com' && password === 'password123';
+            (email === 'admin@example.com' ||
+                email === 'student@example.com') &&
+            password === 'password123';
 
         if (!validUser) {
             return NextResponse.json(
@@ -28,19 +30,32 @@ export async function POST(req: NextRequest) {
 
         if (isLoggedIn && path === '/login') {
             // Redirect logged-in users away from login page
-            return NextResponse.redirect(new URL('/', req.url)); // or dashboard page
+            if (email === 'admin@example.com') {
+                return NextResponse.redirect(new URL('/admin', req.url)); // or dashboard page
+            }
+            
+            return NextResponse.redirect(new URL('/student', req.url));
         }
 
         const res = NextResponse.json(
-            { message: 'Login successful' },
+            {
+                message: 'Login successful',
+                isAdmin: email === 'admin@example.com',
+            },
             { status: 200 }
         );
 
-        res.cookies.set('auth', 'logged-in', {
-            httpOnly: true,
-            path: '/',
-            // maxAge: 60 * 60 * 8, // 8 hour
-        });
+        res.cookies.set(
+            'auth',
+            JSON.stringify({
+                isAdmin: email === 'admin@example.com',
+            }),
+            {
+                httpOnly: true,
+                path: '/',
+                // maxAge: 60 * 60 * 8, // 8 hours
+            }
+        );
 
         return res;
     } catch (error) {

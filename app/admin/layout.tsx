@@ -1,16 +1,27 @@
-import { Header } from "@/components/Header"
+import { Header } from '@/components/Header';
+import { AdminSidebar } from '@/components/adminComponents/AdminSidebar';
+import {
+    SidebarInset,
+    SidebarProvider,
+    SidebarTrigger,
+} from '@/components/ui/sidebar';
 
 export default async function SMSLayout({
     children,
 }: {
-    children: React.ReactNode
+    children: React.ReactNode;
 }) {
     return (
-        <div className="mx-auto w-full px-8">
-            <Header />
-            <div className="px-4 py-2">
-                {children}
-            </div>
-        </div>
-    )
+        <SidebarProvider>
+            <AdminSidebar />
+            <SidebarInset>
+                <Header>
+                    <SidebarTrigger className="-ml-1" />
+                </Header>
+                <main className='py-4 px-8'>
+                    {children}
+                </main>
+            </SidebarInset>
+        </SidebarProvider>
+    );
 }

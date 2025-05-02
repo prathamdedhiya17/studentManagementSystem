@@ -14,21 +14,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import LogoutButton from './LogoutButton';
 
-export function Header() {
+export function Header({
+    children,
+}: {
+    children: React.ReactNode
+}) {
     return (
         <header className="sticky top-0 bg-background h-12 p-2 border-b z-20">
             <div className="flex h-8 items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <NavButton href="/home" label="Home" icon={HomeIcon} />
-                    <Link
-                        href={'/home'}
-                        className="flex justify-center items-center gap-2 ml-0"
-                        title="Home"
-                    >
-                        <h1 className="hidden sm:block text-xl font-bold m-0 mt-1">
-                            Student Management System
-                        </h1>
-                    </Link>
+                    {children}
                 </div>
                 <div className="flex items-center">
                     <ModeToggle />
