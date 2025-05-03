@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 import {
     ColumnDef,
@@ -31,22 +30,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { DataTablePagination } from './DataTablePagination';
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
-    columnName: string;
-    placeholder: string;
-    pagination: boolean;
 }
 
-export function CustomDataTable<TData, TValue>({
+export function DataTable<TData, TValue>({
     columns,
     data,
-    columnName,
-    placeholder,
-    pagination,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
     const [columnFilters, setColumnFilters] =
@@ -66,11 +58,6 @@ export function CustomDataTable<TData, TValue>({
         getFilteredRowModel: getFilteredRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
-        initialState: {
-            pagination: {
-                pageSize: 100
-            }
-        },
         state: {
             sorting,
             columnFilters,
@@ -80,26 +67,12 @@ export function CustomDataTable<TData, TValue>({
     });
 
     return (
-        <div>
-            <div className="flex flex-wrap justify-between gap-4 py-4">
-                <Input
-                    placeholder={`Filter ${placeholder}...`}
-                    value={
-                        (table
-                            .getColumn(columnName)
-                            ?.getFilterValue() as string) ?? ''
-                    }
-                    onChange={(event: any) =>
-                        table
-                            .getColumn(columnName)
-                            ?.setFilterValue(event.target.value)
-                    }
-                    className="w-80 md:w-96"
-                />
+        <div className='relative'>
+            {/* <div className="invisible md:visible absolute right-0 -top-16 py-4">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                            Edit Columns
+                        <Button variant="outline" className="ml-auto">
+                            Columns
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -123,7 +96,7 @@ export function CustomDataTable<TData, TValue>({
                             })}
                     </DropdownMenuContent>
                 </DropdownMenu>
-            </div>
+            </div> */}
 
             <div className="rounded-md border">
                 <Table>
@@ -178,12 +151,6 @@ export function CustomDataTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-
-            {pagination && (
-                <div className='mt-10'>
-                    <DataTablePagination table={table} />
-                </div>
-            )}
         </div>
     );
 }

@@ -3,12 +3,7 @@
 import { useRef, useState } from 'react';
 
 // UI Imports
-import {
-    CalendarIcon,
-    Ellipsis,
-    Pencil,
-    Trash2Icon,
-} from 'lucide-react';
+import { CalendarIcon, Ellipsis, Pencil, Trash2Icon } from 'lucide-react';
 import TableSkeleton from '@/app/utils/loadingUtils/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,7 +44,6 @@ import {
 
 import { format } from 'date-fns';
 
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -63,6 +57,13 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 import { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
@@ -73,25 +74,28 @@ export const metadata = {
     title: 'Admin',
 };
 
-type Student = {
+type EnrollmentData = {
+    enrollmentID: number;
     studentID: number;
-    name: string;
-    email: string;
-    dob: string;
-    enrollments: string[];
-    gpa: number;
-    password: string;
+    courseID: number;
+    enrollmentDate: Date;
+    status: string;
+    grade: string;
 };
 
-export default function Admin({ initialData }: { initialData: Student[] }) {
-    const [data, setData] = useState<Student[]>(initialData);
+export default function Admin({
+    initialData,
+}: {
+    initialData: EnrollmentData[];
+}) {
+    const [data, setData] = useState<EnrollmentData[]>(initialData);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(false);
     const isLoading = useRef(false);
 
     const refetch = async () => {
         setLoading(true);
-        const res = await fetch('http://localhost:3000/api/admin/students');
+        const res = await fetch('http://localhost:3000/api/admin/enrollmentData');
 
         if (!res.ok) {
             setError(true);
@@ -114,66 +118,49 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
         return <TableSkeleton />;
     }
 
-    const formSchema = z
-        .object({
-            studentID: z.number(),
-            name: z.string({
-                required_error: 'Name is required.',
-            }).min(1, 'Name is required.'),
-            email: z
-                .string({
-                    required_error: 'Email is required.',
-                })
-                .email(),
-            dob: z.date({
-                required_error: 'A date of birth is required.',
-            }),
-            enrollments: z.string().array(),
-            gpa: z.string(),
-            password: z
-                .string()
-                .min(8, {
-                    message: 'Password must be atleast 8 characters',
-                })
-                .regex(
-                    new RegExp(
-                        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
-                    ),
-                    'Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character'
-                )
-                .refine(
-                    (value) => !/\s/.test(value),
-                    'Password must not contain whitespace'
-                ),
-            confirmPassword: z.string(),
-        })
-        .refine((schema) => schema.confirmPassword === schema.password, {
-            message: 'Both Passwords must match!',
-            path: ['confirmPassword'],
-        });
+    const formSchema = z.object({
+        enrollmentID: z.number(),
+        studentID: z
+            .string({
+                required_error: 'Student ID is required.',
+            })
+            .min(1, 'Student ID is required.'),
+        courseID: z
+            .string({
+                required_error: 'Course ID is required.',
+            })
+            .min(1, 'Course ID is required.'),
+        enrollmentDate: z.date({
+            required_error: 'An enrollment date is required.',
+        }),
+        status: z
+            .string({
+                required_error: 'Status is required.',
+            })
+            .min(1, 'Status is required.'),
+        grade: z.string(),
+    });
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         isLoading.current = true;
 
         const formatted = {
             ...values,
-            dob: values.dob.toISOString().split('T')[0],
+            dob: values.enrollmentDate.toISOString().split('T')[0],
         };
-
-        const { confirmPassword, ...toSend } = formatted;
 
         try {
             await fetch(
-                `http://localhost:3000/api/admin/students/${toSend.studentID}`,
+                `http://localhost:3000/api/admin/enrollmentData/${formatted.studentID}`,
                 {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(toSend),
+                    body: JSON.stringify(formatted),
                 }
             ).then((data) => data.json());
-            toast.success('Student Updated Successfully!');
+            toast.success('Enrollment Data Updated Successfully!');
             isLoading.current = false;
             refetch();
         } catch (error) {
@@ -185,10 +172,13 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
 
     async function deleteData(studentID: number) {
         try {
-            await fetch(`http://localhost:3000/api/admin/students/${studentID}`, {
-                method: 'DELETE',
-            }).then((data) => data.json());
-            toast.success('Student deleted successfully!');
+            await fetch(
+                `http://localhost:3000/api/admin/enrollmentData/${studentID}`,
+                {
+                    method: 'DELETE',
+                }
+            ).then((data) => data.json());
+            toast.success('Enrollment deleted successfully!');
             refetch();
         } catch (error) {
             console.error('Error:', error);
@@ -196,62 +186,59 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
         }
     }
 
-    const AddressColumns: ColumnDef<Student>[] = [
+    const AddressColumns: ColumnDef<EnrollmentData>[] = [
         {
-            accessorKey: 'studentID',
+            accessorKey: 'enrollmentID',
             header: () => {
                 return <div className="text-center">ID</div>;
             },
             cell: ({ row }) => (
                 <div className="text-center">
-                    {row.getValue('studentID')}
+                    {row.getValue('enrollmentID')}
                 </div>
             ),
         },
         {
-            accessorKey: 'name',
-            header: () => <div className="text-center">Name</div>,
-            cell: ({ row }) => (
-                <div className="text-center">{row.getValue('name')}</div>
-            ),
-        },
-        {
-            accessorKey: 'email',
+            accessorKey: 'studentID',
             header: () => {
-                return <div className="text-center">Email</div>;
+                return <div className="text-center">Student ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('email')}</div>
+                <div className="text-center">{row.getValue('studentID')}</div>
             ),
         },
         {
-            accessorKey: 'dob',
+            accessorKey: 'courseID',
             header: () => {
-                return <div className="text-center">DOB</div>;
+                return <div className="text-center">Course ID</div>;
+            },
+            cell: ({ row }) => (
+                <div className="text-center">{row.getValue('courseID')}</div>
+            ),
+        },
+        {
+            accessorKey: 'enrollmentDate',
+            header: () => {
+                return <div className="text-center">Enrollment Date</div>;
             },
             cell: ({ row }) => (
                 <div className="text-center">
-                    {APIdateFormatter(new Date(row.getValue('dob')))}
+                    {APIdateFormatter(new Date(row.getValue('enrollmentDate')))}
                 </div>
             ),
         },
         {
-            accessorKey: 'enrollments',
-            header: () => <div className="text-center">Enrollments</div>,
+            accessorKey: 'status',
+            header: () => <div className="text-center">Status</div>,
             cell: ({ row }) => (
-                <div className="max-w-80 mx-auto text-center">
-                    {/* @ts-ignore */}
-                    {row.getValue('enrollments').join(', ')}
-                </div>
+                <div className="text-center">{row.getValue('status')}</div>
             ),
         },
         {
-            accessorKey: 'gpa',
-            header: () => {
-                return <div className="text-center">GPA</div>;
-            },
+            accessorKey: 'grade',
+            header: () => <div className="text-center">Grade</div>,
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('gpa')}</div>
+                <div className="text-center">{row.getValue('grade') ? row.getValue('grade') : '-' }</div>
             ),
         },
         {
@@ -263,14 +250,12 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                 const form = useForm<z.infer<typeof formSchema>>({
                     resolver: zodResolver(formSchema),
                     defaultValues: {
-                        studentID: row.original.studentID,
-                        name: row.original.name,
-                        email: row.original.email,
-                        dob: new Date(row.original.dob),
-                        enrollments: row.original.enrollments,
-                        gpa: row.original.gpa.toString(),
-                        password: row.original.password,
-                        confirmPassword: '',
+                        enrollmentID: row.original.enrollmentID,
+                        studentID: row.original.studentID.toString(),
+                        courseID: row.original.courseID.toString(),
+                        grade: row.original.grade,
+                        status: row.original.status,
+                        enrollmentDate: new Date(row.original.enrollmentDate),
                     },
                 });
 
@@ -317,8 +302,8 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                             </AlertDialogTitle>
                                             <AlertDialogDescription>
                                                 This action cannot be undone.
-                                                This will permanently delete
-                                                the student.
+                                                This will permanently delete the
+                                                student.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -331,7 +316,9 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                             </AlertDialogCancel>
                                             <AlertDialogAction
                                                 onClick={() =>
-                                                    deleteData(row.original.studentID)
+                                                    deleteData(
+                                                        row.original.studentID
+                                                    )
                                                 }
                                             >
                                                 Continue
@@ -357,11 +344,11 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                     >
                                         <FormField
                                             control={form.control}
-                                            name="studentID"
+                                            name="enrollmentID"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96 hidden">
                                                     <FormLabel className="ml-2">
-                                                        studentID
+                                                        Enrollment ID
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input {...field} />
@@ -371,11 +358,11 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="name"
+                                            name="studentID"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96">
                                                     <FormLabel className="ml-2">
-                                                        Name
+                                                        Student ID
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input {...field} />
@@ -386,11 +373,26 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="dob"
+                                            name="courseID"
+                                            render={({ field }) => (
+                                                <FormItem className="max-w-96">
+                                                    <FormLabel className="ml-2">
+                                                        Course ID
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="enrollmentDate"
                                             render={({ field }) => (
                                                 <FormItem className="flex flex-col">
                                                     <FormLabel>
-                                                        Date of birth
+                                                        Enrollment Date
                                                     </FormLabel>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
@@ -453,81 +455,51 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="email"
+                                            name="status"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>
+                                                        Status
+                                                    </FormLabel>
+                                                    <Select
+                                                        onValueChange={
+                                                            field.onChange
+                                                        }
+                                                        defaultValue={
+                                                            field.value
+                                                        }
+                                                    >
+                                                        <FormControl>
+                                                            <SelectTrigger className='cursor-pointer'>
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="active" className='cursor-pointer'>
+                                                                Active
+                                                            </SelectItem>
+                                                            <SelectItem value="completed" className='cursor-pointer'>
+                                                                Completed
+                                                            </SelectItem>
+                                                            <SelectItem value="failed" className='cursor-pointer'>
+                                                                Failed
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="grade"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96">
                                                     <FormLabel className="ml-2">
-                                                        Email
+                                                        Grade
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="gpa"
-                                            render={({ field }) => (
-                                                <FormItem className="max-w-96">
-                                                    <FormLabel className="ml-2">
-                                                        GPA
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Input {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="enrollments"
-                                            render={({ field }) => (
-                                                <FormItem className="max-w-96">
-                                                    <FormLabel className="ml-2">
-                                                        Enrollments
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Textarea
-                                                            {...field}
-                                                            className="h-24"
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="password"
-                                            render={({ field }) => (
-                                                <FormItem className="max-w-96">
-                                                    <FormLabel className="ml-2">
-                                                        Password
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Input {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <FormField
-                                            control={form.control}
-                                            name="confirmPassword"
-                                            render={({ field }) => (
-                                                <FormItem className="max-w-96">
-                                                    <FormLabel className="ml-2">
-                                                        Confirm Password
-                                                    </FormLabel>
-                                                    <FormControl>
-                                                        <Input
-                                                            autoComplete="off"
-                                                            type='password'
-                                                            {...field}
-                                                        />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>
@@ -556,7 +528,7 @@ export default function Admin({ initialData }: { initialData: Student[] }) {
     return (
         <div>
             <Input
-                placeholder="Filter by name..."
+                placeholder="Filter by enrollment ID..."
                 // value={search ?? ""}
                 // onChange={(e: any) => setSearch(e.target.value)}
                 className="w-80 md:w-96 my-4"

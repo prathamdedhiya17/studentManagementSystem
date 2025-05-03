@@ -42,8 +42,6 @@ async function getDashboardData(): Promise<DashboardData> {
 export default async function Admin() {
     const data: DashboardData = await getDashboardData();
 
-    console.log(data);
-
     return (
         <div>
             <h2 className="font-semibold text-3xl">Dashboard</h2>

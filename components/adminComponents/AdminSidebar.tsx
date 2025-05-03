@@ -40,8 +40,8 @@ const data = {
                     url: '/admin/enrollment',
                 },
                 {
-                    title: 'Admins',
-                    url: '/admin/admin_details',
+                    title: 'Admin List',
+                    url: '/admin/adminUsers',
                 },
             ],
         },
