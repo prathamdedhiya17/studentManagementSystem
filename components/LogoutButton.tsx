@@ -19,7 +19,7 @@ const LogoutButton = () => {
 
     return (
         <span onClick={handleLogout}>
-            <NavButton label="Logout" icon={LogOut} />Logout;
+            <NavButton label="Logout" icon={LogOut} />Logout
         </span>
     );
 };

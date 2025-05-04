@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
             'auth',
             JSON.stringify({
                 isAdmin: email === 'admin@example.com',
+                userID: 1,
+                name: 'Synthia'
             }),
             {
                 httpOnly: true,
