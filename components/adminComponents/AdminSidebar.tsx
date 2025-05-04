@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import * as React from 'react';
 import {
@@ -13,7 +13,14 @@ import {
     SidebarMenuItem,
     SidebarRail,
 } from '@/components/ui/sidebar';
-import { usePathname } from "next/navigation";
+import { usePathname } from 'next/navigation';
+import {
+    GraduationCap,
+    LaptopMinimalCheck,
+    LayoutDashboard,
+    LibraryBig,
+    UserCog,
+} from 'lucide-react';
 
 // This is sample data.
 const data = {
@@ -25,23 +32,27 @@ const data = {
                 {
                     title: 'Dashboard',
                     url: '/admin',
-                    isActive: true,
+                    icon: <LayoutDashboard />,
                 },
                 {
                     title: 'Students',
                     url: '/admin/students',
+                    icon: <GraduationCap />,
                 },
                 {
                     title: 'Courses',
                     url: '/admin/courses',
+                    icon: <LibraryBig />,
                 },
                 {
                     title: 'Enrollment',
                     url: '/admin/enrollment',
+                    icon: <LaptopMinimalCheck />,
                 },
                 {
                     title: 'Admin List',
                     url: '/admin/adminUsers',
+                    icon: <UserCog />,
                 },
             ],
         },
@@ -57,10 +68,9 @@ export function AdminSidebar({
         <Sidebar {...props}>
             <SidebarHeader></SidebarHeader>
             <SidebarContent>
-                {/* We create a SidebarGroup for each parent. */}
                 {data.navMain.map((item) => (
                     <SidebarGroup key={item.title}>
-                        <SidebarGroupLabel>{item.title}</SidebarGroupLabel>
+                        <SidebarGroupLabel className='text-primary text-base opacity-100'>{item.title}</SidebarGroupLabel>
                         <SidebarGroupContent>
                             <SidebarMenu>
                                 {item.items.map((item) => (
@@ -69,7 +79,12 @@ export function AdminSidebar({
                                             asChild
                                             isActive={pathname === item.url}
                                         >
-                                            <a href={item.url}>{item.title}</a>
+                                            <a href={item.url} className='my-1'>
+                                                <span className={`w-5 h-5 ${pathname === item.url && 'text-primary'}`}>
+                                                    {item.icon}
+                                                </span>
+                                                <span className='ml-2'>{item.title}</span>
+                                            </a>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
                                 ))}

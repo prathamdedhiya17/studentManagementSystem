@@ -23,7 +23,7 @@ export default async function StudentPage() {
 
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold mb-4">Admin List</h1>
+            <h1 className="text-2xl font-bold border-b-4 border-primary pr-1 w-fit rounded-r-xs mb-4">Admin List</h1>
             <Table initialData={students} />
         </div>
     );

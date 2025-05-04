@@ -158,7 +158,7 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
         }
     }
 
-    const AddressColumns: ColumnDef<Course>[] = [
+    const columns: ColumnDef<Course>[] = [
         {
             accessorKey: 'courseID',
             header: () => {
@@ -408,7 +408,7 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                 className="w-80 md:w-96 my-4"
                 // <ServerSidePagination totalCount={data.total_count ? data.total_count > 0 ? data.total_count : 1 : 1} dirty={dirty} setDirty={setDirty} />
             />
-            <DataTable columns={AddressColumns} data={data} />
+            <DataTable columns={columns} data={data} />
         </div>
     );
 }

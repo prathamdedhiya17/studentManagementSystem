@@ -9,10 +9,10 @@ const dashboadData = z.object({
 
 export async function GET() {
     const data = {
-        totalStudents: 1250,
-        totalCourses: 35,
-        activeEnrollments: 1072,
-        adminUsers: 5,
+        totalStudents: 3,
+        totalCourses: 3,
+        activeEnrollments: 3,
+        adminUsers: 2,
         // recentActivity: [
         //     'Alice Johnson enrolled in Introduction to Computer Science',
         //     'New course added: Data Structures',

@@ -186,7 +186,7 @@ export default function Admin({
         }
     }
 
-    const AddressColumns: ColumnDef<EnrollmentData>[] = [
+    const columns: ColumnDef<EnrollmentData>[] = [
         {
             accessorKey: 'enrollmentID',
             header: () => {
@@ -534,7 +534,7 @@ export default function Admin({
                 className="w-80 md:w-96 my-4"
                 // <ServerSidePagination totalCount={data.total_count ? data.total_count > 0 ? data.total_count : 1 : 1} dirty={dirty} setDirty={setDirty} />
             />
-            <DataTable columns={AddressColumns} data={data} />
+            <DataTable columns={columns} data={data} />
         </div>
     );
 }

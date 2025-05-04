@@ -5,7 +5,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Plus } from 'lucide-react';
+import { GraduationCap, LaptopMinimalCheck, LibraryBig } from 'lucide-react';
 import Link from 'next/link';
 
 export const metadata = {
@@ -81,24 +81,24 @@ export default async function Admin() {
 
             {/* Quick Actions */}
             <div>
-                <h3 className="font-semibold text-2xl mb-2">Quick Actions</h3>
+                <h3 className="font-semibold text-2xl border-b-4 border-primary pr-1 w-fit rounded-r-xs mb-2 mt-14">Quick Actions</h3>
                 <div className="flex gap-8">
-                    <Button asChild className="cursor-pointer">
-                        <Link href="/">
-                            <Plus />
-                            Add Student
+                    <Button asChild className="h-20 w-40 m-4 bg-card text-card-foreground border hover:border-0 hover:bg-primary hover:text-primary-foreground">
+                        <Link href="/admin/students">
+                            <GraduationCap />
+                            Student
                         </Link>
                     </Button>
-                    <Button asChild className="cursor-pointer">
-                        <Link href="/">
-                            <Plus />
-                            Add Course
+                    <Button asChild className="h-20 w-40 m-4 bg-card text-card-foreground border hover:border-0 hover:bg-primary hover:text-primary-foreground">
+                        <Link href="/admin/courses">
+                            <LibraryBig />
+                            Course
                         </Link>
                     </Button>
-                    <Button asChild className="cursor-pointer">
-                        <Link href="/">
-                            <Plus />
-                            Add Enrollment
+                    <Button asChild className="h-20 w-40 m-4 bg-card text-card-foreground border hover:border-0 hover:bg-primary hover:text-primary-foreground">
+                        <Link href="/admin/enrollment">
+                            <LaptopMinimalCheck />
+                            Enrollment
                         </Link>
                     </Button>
                 </div>
