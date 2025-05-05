@@ -275,7 +275,7 @@ export default function Admin({
                 return <div className="text-center">ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('id')}</div>
+                <div className="text-center">{row.index + 1}</div>
             ),
         },
         {

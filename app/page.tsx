@@ -72,6 +72,7 @@ export default function Login() {
                 <ModeToggle />
             </div>
             <main className="flex flex-1 flex-col items-center justify-center">
+                <h1 className='mb-6 text-3xl font-semibold border-b-4 border-primary rounded-b-md px-2 pb-2'>Student Management System</h1>
                 <div className="w-full max-w-sm">
                     <Card>
                         <CardHeader>
@@ -103,12 +104,6 @@ export default function Login() {
                                             <Label htmlFor="password">
                                                 Password
                                             </Label>
-                                            {/* <a
-                                                href="#"
-                                                className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                                            >
-                                                Forgot your password?
-                                            </a> */}
                                         </div>
                                         <Input
                                             id="password"
@@ -137,57 +132,10 @@ export default function Login() {
                                             : 'Login'}
                                     </Button>
                                 </div>
-                                {/* <div className="mt-4 text-center text-sm">
-                                    Don&apos;t have an account?{' '}
-                                    <a
-                                        href="#"
-                                        className="underline underline-offset-4"
-                                    >
-                                        Sign up
-                                    </a>
-                                </div> */}
                             </form>
                         </CardContent>
                     </Card>
                 </div>
-                {/* <form
-                    onSubmit={handleSubmit(onSubmit)}
-                    className="w-1/5 mx-auto space-y-4"
-                >
-                    <Input
-                        type="email"
-                        placeholder="Email"
-                        {...register('email')}
-                    />
-                    {errors.email && (
-                        <p className="text-red-500 text-sm">
-                            {errors.email.message}
-                        </p>
-                    )}
-
-                    <Input
-                        type="password"
-                        placeholder="Password"
-                        {...register('password')}
-                    />
-                    {errors.password && (
-                        <p className="text-red-500 text-sm">
-                            {errors.password.message}
-                        </p>
-                    )}
-
-                    {errorMsg && (
-                        <p className="text-red-500 text-sm">{errorMsg}</p>
-                    )}
-
-                    <Button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="w-full cursor-pointer"
-                    >
-                        {isSubmitting ? 'Logging in...' : 'Login'}
-                    </Button>
-                </form> */}
             </main>
         </div>
     );
