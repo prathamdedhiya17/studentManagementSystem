@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎓 Student Management System (Admin + Student Portal)
 
-## Getting Started
+This is a full-stack web application for managing students, courses, and enrollments. It supports authentication for both **admin** and **student** roles, role-based routing, and secure CRUD operations on all entities.
 
-First, run the development server:
+Built with:
+
+- ⚡ [Next.js 14](https://nextjs.org/)
+- 🧪 [Supabase](https://supabase.com/) (PostgreSQL)
+- 🧑‍💻 React Table (for dynamic data tables)
+- 🎨 Tailwind CSS (via shadcn/ui)
+- 🔒 HTTP-only cookies for authentication
+- 🧠 Zod for schema validation
+
+---
+
+## ✨ Features
+
+- ✅ Admin & Student login
+- ✅ Role-based routing middleware
+- ✅ Dashboard metrics
+- ✅ CRUD operations for:
+  - Students
+  - Courses
+  - Enrollments
+  - Admins
+- ✅ Secure HTTP-only session management
+- ✅ Clean modular API routes
+- ✅ Server-side data fetching with `no-store` caching
+- ✅ Supabase relational joins (e.g., `student -> enrollments -> course`)
+- ✅ Error boundaries and graceful fallbacks
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/prathamdedhiya17/studentManagementSystem.git
+cd studentManagementSystem-main
+```
+
+### 2. Install dependencies
+
+```bash
+npm install
+```
+
+### 3. Configure Supabase
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 4. Run the Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Visit `http://localhost:3000` to see the app.
+
+### 5. Build for Production
+```bash
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
+## 🗃️ Folder Structure
+```
+app/
+  ├── admin                    		# Admin Pages
+  ├── student                    	# Student Pages
+  ├── api/ admin                    # API routes (REST-style)
+  │    		└── students/
+  │    		└── courses/
+  │    		└── enrollmentData/
+  │    		└── adminUsers/
+  │    		└── route.ts		    # Dashboard Route
+  ├── student/                 # Student dashboard page
+  └── login/                   # Shared login route
+  └── logout/                  # logout route
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+components/                    # Reusable UI components
+lib/                           # Supabase client
+utils/                         # Custom Hooks and Loading Utils
+middleware.ts                  # Role-based route enforcement
+```
 
-## Learn More
+---
+## 🧪 Test Users
 
-To learn more about Next.js, take a look at the following resources:
+### Admin:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+-   **Email:** `admin@sms.com`
+    
+-   **Password:** `Admin@123`
+    
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Student:
 
-## Deploy on Vercel
+-   **Email:** `alice@sms.com`
+    
+-   **Password:** `Alice@123`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributors
+- Pratham Dedhiya (pdedhiya)
+- Nitin Tewari (nitewari)
+
+
+## License
+This project is built as part of **SP25: APPLIED DATABASE TECHNOLOGIES: 10430** (Spring 2025), Indiana University Bloomington.
