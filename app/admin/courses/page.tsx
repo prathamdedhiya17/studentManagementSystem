@@ -1,7 +1,8 @@
 import Table from './Table';
 
 type Course = {
-    courseID: number;
+    id: number;
+    courseid: string;
     name: string;
     program: string;
     sem: string;
@@ -22,7 +23,9 @@ export default async function Courses() {
     const courses: Course[] = await getCourses();
     return (
         <div className="p-6">
-            <h1 className="text-2xl font-bold border-b-4 border-primary pr-1 w-fit rounded-r-xs mb-4">Available Courses</h1>
+            <h1 className="text-2xl font-bold border-b-4 border-primary pr-1 w-fit rounded-r-xs mb-4">
+                Available Courses
+            </h1>
             <Table initialData={courses} />
         </div>
     );

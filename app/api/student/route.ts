@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET(request: NextRequest) {
     const authCookie = request.cookies.get('auth')?.value;
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
     let userID;
     try {
         const parsedAuth = JSON.parse(authCookie);
-        userID = parsedAuth?.userID;
+        userID = parsedAuth?.id;
     } catch (error) {
         return NextResponse.json(
             { error: 'Invalid auth cookie' },
@@ -30,78 +31,52 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const students = [
-        {
-            studentID: 1,
-            name: 'Alice Johnson',
-            email: 'alice.j@iu.edu',
-            dob: '2004-05-12',
-            enrollments: [
-                {
-                    courseID: 'DL501',
-                    course: 'Deep Learning',
-                    status: 'In Progress',
-                    grade: '-',
-                },
-                {
-                    courseID: 'ADT401',
-                    course: 'Applied Database Technologies',
-                    status: 'completed',
-                    grade: 'A+',
-                },
-            ],
-            gpa: 3.7,
-            password: 'Abcd@123',
-        },
-        {
-            studentID: 2,
-            name: 'Bob Smith',
-            email: 'bob.smith@iu.edu',
-            dob: '2003-09-20',
-            enrollments: [
-                {
-                    courseID: 'S522',
-                    course: 'Statistics',
-                    status: 'In Progress',
-                    grade: '-',
-                },
-                {
-                    courseID: 'AML402',
-                    course: 'Applied Machine Learning',
-                    status: 'completed',
-                    grade: 'B',
-                },
-            ],
-            gpa: 3.2,
-            password: 'Abcd@123',
-        },
-        {
-            studentID: 3,
-            name: 'Carol Diaz',
-            dob: '2005-02-28',
-            email: 'carol.diaz@example.com',
-            enrollments: [
-                {
-                    courseID: 'S522',
-                    course: 'Statistics',
-                    status: 'In Progress',
-                    grade: '-',
-                },
-                {
-                    courseID: 'AML402',
-                    course: 'Applied Machine Learning',
-                    status: 'completed',
-                    grade: 'B',
-                },
-            ],
-            gpa: 3.5,
-            password: 'Abcd@123',
-        },
-    ];
+    const supabase = await createClient();
 
-    const student = students.find((s) => s.studentID === userID);
+    const { data, error } = await supabase
+        .from('students')
+        .select(
+        `
+            id,
+            studentid,
+            name,
+            email,
+            dob,
+            gpa,
+            password,
+            enrollments (
+                status,
+                grade,
+                courses (
+                    courseid,
+                    name
+                )
+            )
+        `
+        )
+        .eq('id', userID)
+        .single();
 
-    return NextResponse.json(student ?? { error: 'Student not found' }, {
-        status: student ? 200 : 404,
-    });
+    if (error || !data) {
+        return new Response(JSON.stringify({ error: 'Student not found' }), {
+            status: 404,
+        });
+    }
+
+    const formatted = {
+        studentid: data.studentid,
+        name: data.name,
+        email: data.email,
+        dob: data.dob,
+        gpa: data.gpa,
+        password: data.password,
+        enrollments: data.enrollments.map((enroll: any) => ({
+            courseid: enroll.courses?.courseid ?? 'Unknown',
+            name: enroll.courses?.name ?? 'Unknown',
+            status: enroll.status,
+            grade: enroll.grade,
+        })),
+    };
+
+    return Response.json(formatted);
 }

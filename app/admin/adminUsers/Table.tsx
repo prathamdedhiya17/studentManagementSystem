@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // UI Imports
-import { CalendarIcon, Ellipsis, Pencil, Trash2Icon } from 'lucide-react';
-import TableSkeleton from '@/app/utils/loadingUtils/TableSkeleton';
+import { Ellipsis, Pencil, Trash2Icon } from 'lucide-react';
+import TableSkeleton from '@/utils/loadingUtils/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -36,15 +36,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
-
-import { format } from 'date-fns';
-
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -67,13 +58,10 @@ import {
 
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/datatableComponent/DataTable';
-
-export const metadata = {
-    title: 'Admin',
-};
+import { useDebounce } from '@/utils/customHooks/useDebounce';
 
 type Admin = {
-    adminID: number;
+    id: number;
     name: string;
     email: string;
     password: string;
@@ -86,9 +74,21 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
     const [error, setError] = useState(false);
     const isLoading = useRef(false);
 
+    const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search);
+
     const refetch = async () => {
         setLoading(true);
-        const res = await fetch('http://localhost:3000/api/admin/adminUsers');
+        const res =
+            debouncedSearch.length > 0
+                ? await fetch('http://localhost:3000/api/admin/adminUsers', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ search: debouncedSearch }),
+                  })
+                : await fetch('http://localhost:3000/api/admin/adminUsers');
 
         if (!res.ok) {
             setError(true);
@@ -98,6 +98,92 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
         setData(updated);
         setLoading(false);
     };
+
+    useEffect(() => {
+        refetch();
+    }, [debouncedSearch]);
+
+    const addFormSchema = z
+        .object({
+            name: z
+                .string({
+                    required_error: 'Name is required.',
+                })
+                .min(1, 'Name is required.'),
+            email: z
+                .string({
+                    required_error: 'Email is required.',
+                })
+                .email(),
+            role: z
+                .string({
+                    required_error: 'Role is required.',
+                })
+                .min(1, 'Role is required.'),
+            password: z
+                .string()
+                .min(8, {
+                    message: 'Password must be atleast 8 characters',
+                })
+                .regex(
+                    new RegExp(
+                        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/
+                    ),
+                    'Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character'
+                )
+                .refine(
+                    (value) => !/\s/.test(value),
+                    'Password must not contain whitespace'
+                ),
+            confirmPassword: z.string(),
+        })
+        .refine((schema) => schema.confirmPassword === schema.password, {
+            message: 'Both Passwords must match!',
+            path: ['confirmPassword'],
+        });
+
+    const addForm = useForm<z.infer<typeof addFormSchema>>({
+        resolver: zodResolver(addFormSchema),
+        defaultValues: {
+            name: '',
+            email: '',
+            role: '',
+            password: '',
+            confirmPassword: '',
+        },
+    });
+
+    async function onAddSubmit(values: z.infer<typeof addFormSchema>) {
+        isLoading.current = true;
+
+        try {
+            const res = await fetch(
+                `http://localhost:3000/api/admin/adminUsers/create`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(values),
+                }
+            ).then((data) => data.json());
+
+            isLoading.current = false;
+            if (res.success) {
+                toast.success('Admin Added Successfully!');
+                addForm.reset();
+                refetch();
+            } else {
+                toast.error(
+                    'There was some error adding admin, please try again!'
+                );
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error("Couldn't add data, try again later... :(");
+            isLoading.current = false;
+        }
+    }
 
     if (error) {
         return (
@@ -113,7 +199,7 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
 
     const formSchema = z
         .object({
-            adminID: z.number(),
+            id: z.number(),
             name: z
                 .string({
                     required_error: 'Name is required.',
@@ -157,8 +243,8 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
         const { confirmPassword, ...toSend } = values;
 
         try {
-            await fetch(
-                `http://localhost:3000/api/admin/adminUsers/${toSend.adminID}`,
+            const res = await fetch(
+                `http://localhost:3000/api/admin/adminUsers/${toSend.id}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -167,9 +253,13 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                     body: JSON.stringify(toSend),
                 }
             ).then((data) => data.json());
-            toast.success('Admin Details Updated Successfully!');
             isLoading.current = false;
-            refetch();
+            if (res.success) {
+                toast.success('Admin Details Updated Successfully!');
+                refetch();
+            } else {
+                toast.error("Couldn't update admin" + ` ${res.error}`);
+            }
         } catch (error) {
             console.error('Error:', error);
             toast.error("Couldn't update data, try again later... :(");
@@ -177,16 +267,20 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
         }
     }
 
-    async function deleteData(adminID: number) {
+    async function deleteData(id: number) {
         try {
-            await fetch(
-                `http://localhost:3000/api/admin/adminUsers/${adminID}`,
+            const res = await fetch(
+                `http://localhost:3000/api/admin/adminUsers/${id}`,
                 {
                     method: 'DELETE',
                 }
             ).then((data) => data.json());
-            toast.success('Admin deleted successfully!');
-            refetch();
+            if (res.success) {
+                toast.success('Admin deleted successfully!');
+                refetch();
+            } else {
+                toast.error("Couldn't delete admin" + ` ${res.error}`);
+            }
         } catch (error) {
             console.error('Error:', error);
             toast.error("Couldn't delete admin, try again later... :(");
@@ -194,15 +288,6 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
     }
 
     const columns: ColumnDef<Admin>[] = [
-        {
-            accessorKey: 'adminID',
-            header: () => {
-                return <div className="text-center">ID</div>;
-            },
-            cell: ({ row }) => (
-                <div className="text-center">{row.getValue('adminID')}</div>
-            ),
-        },
         {
             accessorKey: 'name',
             header: () => <div className="text-center">Name</div>,
@@ -225,7 +310,9 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                 return <div className="text-center">Role</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('role')}</div>
+                <div className="text-center capitalize">
+                    {row.getValue('role')}
+                </div>
             ),
         },
         {
@@ -237,7 +324,7 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                 const form = useForm<z.infer<typeof formSchema>>({
                     resolver: zodResolver(formSchema),
                     defaultValues: {
-                        adminID: row.original.adminID,
+                        id: row.original.id,
                         name: row.original.name,
                         email: row.original.email,
                         role: row.original.role,
@@ -303,9 +390,7 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                                             </AlertDialogCancel>
                                             <AlertDialogAction
                                                 onClick={() =>
-                                                    deleteData(
-                                                        row.original.adminID
-                                                    )
+                                                    deleteData(row.original.id)
                                                 }
                                             >
                                                 Continue
@@ -331,7 +416,7 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                                     >
                                         <FormField
                                             control={form.control}
-                                            name="adminID"
+                                            name="id"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96 hidden">
                                                     <FormLabel className="ml-2">
@@ -400,7 +485,7 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
                                                                 Admin
                                                             </SelectItem>
                                                             <SelectItem
-                                                                value="super-admin"
+                                                                value="superadmin"
                                                                 className="cursor-pointer"
                                                             >
                                                                 Super Admin
@@ -473,13 +558,150 @@ export default function Admin({ initialData }: { initialData: Admin[] }) {
     ];
     return (
         <div>
-            <Input
-                placeholder="Filter by name..."
-                // value={search ?? ""}
-                // onChange={(e: any) => setSearch(e.target.value)}
-                className="w-80 md:w-96 my-4"
-                // <ServerSidePagination totalCount={data.total_count ? data.total_count > 0 ? data.total_count : 1 : 1} dirty={dirty} setDirty={setDirty} />
-            />
+            <div className="flex gap-4 my-4">
+                <Input
+                    placeholder="Filter by name..."
+                    value={search ?? ''}
+                    onChange={(e: any) => setSearch(e.target.value)}
+                    className="w-80 md:w-96"
+                />
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button>Add Admin</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Admin Details</DialogTitle>
+                            <DialogDescription>
+                                Add Admin details here. Click save when you're
+                                done.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...addForm}>
+                            <form
+                                onSubmit={addForm.handleSubmit(onAddSubmit)}
+                                className="w-96 space-y-6 mx-auto"
+                            >
+                                <FormField
+                                    control={addForm.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Name
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="email"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Email
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="role"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Role</FormLabel>
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="cursor-pointer">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem
+                                                        value="admin"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Admin
+                                                    </SelectItem>
+                                                    <SelectItem
+                                                        value="superadmin"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Super Admin
+                                                    </SelectItem>
+                                                    <SelectItem
+                                                        value="teacher"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Teacher
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="password"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Password
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="confirmPassword"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Confirm Password
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    autoComplete="off"
+                                                    type="password"
+                                                    {...field}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <DialogFooter>
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading.current}
+                                        className="disabled:cursor-not-allowed cursor-pointer"
+                                    >
+                                        {isLoading.current
+                                            ? 'Loading...'
+                                            : 'Save changes'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+            </div>
             <DataTable columns={columns} data={data} />
         </div>
     );

@@ -21,11 +21,6 @@ type DashboardData = {
 };
 
 async function getDashboardData(): Promise<DashboardData> {
-    // const baseUrl =
-    //   process.env.NODE_ENV === 'development'
-    //     ? 'http://localhost:3000'
-    //     : process.env.NEXT_PUBLIC_BASE_URL!; // Set this in prod
-
     const res = await fetch(`http://localhost:3000/api/admin`, {
         cache: 'no-store',
     });

@@ -1,7 +1,7 @@
 import Table from './Table';
 
 type Admin = {
-    adminID: number;
+    id: number;
     name: string;
     email: string;
     password: string;

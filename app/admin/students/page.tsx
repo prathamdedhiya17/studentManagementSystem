@@ -1,7 +1,8 @@
 import Table from './Table';
 
 type Student = {
-    studentID: number;
+    id: number,
+    studentid: string;
     name: string;
     email: string;
     dob: string;

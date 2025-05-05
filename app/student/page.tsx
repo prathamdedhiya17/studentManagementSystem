@@ -5,17 +5,16 @@ import { useEffect, useState } from 'react';
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ColumnDef } from '@tanstack/react-table';
-import { APIdateFormatter } from '../utils/dateFormatter';
 import { DataTable } from '@/components/datatableComponent/DataTable';
 
 type Student = {
-    studentID: number;
+    studentid: number;
     name: string;
     email: string;
     dob: string;
     enrollments: {
-        courseID: string;
-        course: string;
+        courseid: string;
+        name: string;
         status: string;
         grade: string;
     }[];
@@ -35,26 +34,29 @@ export default function Student() {
             .then((data) => setStudent(data));
     }, []);
 
-    console.log(student);
     if (student === null) {
-        return 'Loading...';
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-purple-800"></div>
+            </div>
+        );
     }
 
     const columns: ColumnDef<Student['enrollments'][number]>[] = [
         {
-            accessorKey: 'courseID',
+            accessorKey: 'courseid',
             header: () => {
                 return <div className="text-center">Course ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('courseID')}</div>
+                <div className="text-center">{row.getValue('courseid')}</div>
             ),
         },
         {
-            accessorKey: 'course',
+            accessorKey: 'name',
             header: () => <div className="text-center">Course</div>,
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('course')}</div>
+                <div className="text-center">{row.getValue('name')}</div>
             ),
         },
         {
@@ -63,7 +65,9 @@ export default function Student() {
                 return <div className="text-center">Status</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('status')}</div>
+                <div className="text-center capitalize">
+                    {row.getValue('status')}
+                </div>
             ),
         },
         {
@@ -117,9 +121,11 @@ export default function Student() {
             <h2 className="font-semibold text-2xl border-b-4 border-primary pr-1 w-fit rounded-r-xs mb-2 mt-8">
                 Announcements
             </h2>
-            <ul className='list-disc pl-5'>
+            <ul className="list-disc pl-5">
                 <li>Reminder: Project Proposal due on April 29.</li>
-                <li>New announcement: Semester grades will be posted on May 15.</li>
+                <li>
+                    New announcement: Semester grades will be posted on May 15.
+                </li>
             </ul>
         </div>
     );

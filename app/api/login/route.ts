@@ -1,76 +1,84 @@
-import { NextRequest, NextResponse } from 'next/server';
-import * as z from 'zod';
+import { NextResponse } from 'next/server';
 
-const loginSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(6),
-});
+import { createClient } from '@/utils/supabase/server';
 
-export async function POST(req: NextRequest) {
-    try {
-        const body = await req.json();
-        const { email, password } = loginSchema.parse(body);
+export async function POST(req: Request) {
+    const supabase = await createClient();
+    const body = await req.json();
+    const { email, password } = body;
 
-        const auth = req.cookies.get('auth')?.value;
-        const isLoggedIn = auth === 'logged-in';
-        const path = req.nextUrl.pathname;
+    // 1. First Checking if user exists in Admin Table
+    const { data: admin } = await supabase
+        .from('admins')
+        .select('id, name, email, password')
+        .eq('email', email)
+        .single();
 
-        // Replace this with your actual DB/auth logic
-        const validUser =
-            (email === 'admin@example.com' ||
-                email === 'student@example.com') &&
-            password === 'password123';
-
-        if (!validUser) {
-            return NextResponse.json(
-                { message: 'Invalid credentials' },
+    if (admin) {
+        if (admin.password !== password) {
+            return new Response(
+                JSON.stringify({ success: false, error: 'Incorrect password' }),
                 { status: 401 }
             );
         }
 
-        if (isLoggedIn && path === '/login') {
-            // Redirect logged-in users away from login page
-            if (email === 'admin@example.com') {
-                return NextResponse.redirect(new URL('/admin', req.url)); // or dashboard page
-            }
-            
-            return NextResponse.redirect(new URL('/student', req.url));
-        }
-
-        const res = NextResponse.json(
-            {
-                message: 'Login successful',
-                isAdmin: email === 'admin@example.com',
-            },
-            { status: 200 }
-        );
+        const res = NextResponse.json({ success: true, isAdmin: true });
 
         res.cookies.set(
             'auth',
             JSON.stringify({
-                isAdmin: email === 'admin@example.com',
-                userID: 1,
-                name: 'Synthia'
+                id: admin.id,
+                name: admin.name,
+                isAdmin: true,
             }),
             {
                 httpOnly: true,
                 path: '/',
-                // maxAge: 60 * 60 * 8, // 8 hours
+                // secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
             }
         );
 
         return res;
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { message: 'Validation failed', errors: error.errors },
-                { status: 400 }
+    }
+
+    // 2. Checking if user exists in student table
+    const { data: student } = await supabase
+        .from('students')
+        .select('id, name, email, password')
+        .eq('email', email)
+        .single();
+
+    if (student) {
+        if (student.password !== password) {
+            return new Response(
+                JSON.stringify({ success: false, error: 'Incorrect password' }),
+                { status: 401 }
             );
         }
 
-        return NextResponse.json(
-            { message: 'Something went wrong' },
-            { status: 500 }
+        const res = NextResponse.json({ success: true, isAdmin: false });
+
+        res.cookies.set(
+            'auth',
+            JSON.stringify({
+                id: student.id,
+                name: student.name,
+                isAdmin: false,
+            }),
+            {
+                httpOnly: true,
+                path: '/',
+                // secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+            }
         );
+
+        return res;
     }
+
+    return new Response(
+        JSON.stringify({ success: false, error: 'No account found with this email' }),
+        { status: 404 }
+    );
 }

@@ -1,23 +1,31 @@
-import * as z from 'zod';
-
-const dashboadData = z.object({
-    totalStudents: z.number(),
-    totalCourses: z.number(),
-    activeEnrollments: z.number(),
-    adminUsers: z.number(),
-});
+import { createClient } from '@/utils/supabase/server';
 
 export async function GET() {
-    const data = {
-        totalStudents: 3,
-        totalCourses: 3,
-        activeEnrollments: 3,
-        adminUsers: 2,
-        // recentActivity: [
-        //     'Alice Johnson enrolled in Introduction to Computer Science',
-        //     'New course added: Data Structures',
-        // ],
-    };
+  const supabase = await createClient();
 
-    return Response.json(dashboadData.parse(data));
+  // Running all 4 count queries in parallel
+  const [students, courses, enrollments, admins] = await Promise.all([
+    supabase.from('students').select('*', { count: 'exact', head: true }),
+    supabase.from('courses').select('*', { count: 'exact', head: true }),
+    supabase.from('enrollments').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('admins').select('*', { count: 'exact', head: true }),
+  ]);
+
+  if (students.error || courses.error || enrollments.error || admins.error) {
+    return new Response(
+      JSON.stringify({
+        error: students.error?.message || courses.error?.message || enrollments.error?.message || admins.error?.message,
+      }),
+      { status: 500 }
+    );
+  }
+
+  const data = {
+    totalStudents: students.count ?? 0,
+    totalCourses: courses.count ?? 0,
+    activeEnrollments: enrollments.count ?? 0,
+    adminUsers: admins.count ?? 0,
+  };
+
+  return Response.json(data);
 }

@@ -1,10 +1,10 @@
 import Table from './Table';
 
 type EnrollmentData = {
-    enrollmentID: number,
-    studentID: number,
-    courseID: number,
-    enrollmentDate: Date,
+    id: number,
+    student_id: number,
+    course_id: number,
+    enrollmentdate: Date,
     status: string,
     grade: string,
 };

@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // UI Imports
 import { CalendarIcon, Ellipsis, Pencil, Trash2Icon } from 'lucide-react';
-import TableSkeleton from '@/app/utils/loadingUtils/TableSkeleton';
+import TableSkeleton from '@/utils/loadingUtils/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -67,18 +67,15 @@ import {
 
 import { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
-import { APIdateFormatter } from '@/app/utils/dateFormatter';
+import { APIdateFormatter } from '@/utils/dateFormatter';
 import { DataTable } from '@/components/datatableComponent/DataTable';
-
-export const metadata = {
-    title: 'Admin',
-};
+import { useDebounce } from '@/utils/customHooks/useDebounce';
 
 type EnrollmentData = {
-    enrollmentID: number;
-    studentID: number;
-    courseID: number;
-    enrollmentDate: Date;
+    id: number;
+    student_id: number;
+    course_id: number;
+    enrollmentdate: Date;
     status: string;
     grade: string;
 };
@@ -93,9 +90,25 @@ export default function Admin({
     const [error, setError] = useState(false);
     const isLoading = useRef(false);
 
+    const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search);
+
     const refetch = async () => {
         setLoading(true);
-        const res = await fetch('http://localhost:3000/api/admin/enrollmentData');
+
+        const res =
+            debouncedSearch.length > 0
+                ? await fetch(
+                      'http://localhost:3000/api/admin/enrollmentData',
+                      {
+                          method: 'POST',
+                          headers: {
+                              'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({ search: debouncedSearch }),
+                      }
+                  )
+                : await fetch('http://localhost:3000/api/admin/enrollmentData');
 
         if (!res.ok) {
             setError(true);
@@ -105,6 +118,75 @@ export default function Admin({
         setData(updated);
         setLoading(false);
     };
+
+    useEffect(() => {
+        refetch();
+    }, [debouncedSearch]);
+
+    const addFormSchema = z.object({
+        student_id: z
+            .string({
+                required_error: 'Student ID is required.',
+            })
+            .min(1, 'Student ID is required.'),
+        course_id: z
+            .string({
+                required_error: 'Course ID is required.',
+            })
+            .min(1, 'Course ID is required.'),
+        enrollmentdate: z.date({
+            required_error: 'An enrollment date is required.',
+        }),
+        status: z
+            .string({
+                required_error: 'Status is required.',
+            })
+            .min(1, 'Status is required.'),
+        grade: z.string(),
+    });
+
+    const addForm = useForm<z.infer<typeof addFormSchema>>({
+        resolver: zodResolver(addFormSchema),
+        defaultValues: {
+            student_id: '',
+            course_id: '',
+            enrollmentdate: new Date(),
+            grade: '',
+            status: '',
+        },
+    });
+
+    async function onAddSubmit(values: z.infer<typeof addFormSchema>) {
+        isLoading.current = true;
+
+        try {
+            const res = await fetch(
+                `http://localhost:3000/api/admin/enrollmentData/create`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(values),
+                }
+            ).then((data) => data.json());
+
+            isLoading.current = false;
+            if (res.success) {
+                toast.success('Enrollment Added Successfully!');
+                addForm.reset();
+                refetch();
+            } else {
+                toast.error(
+                    'There was some error adding enrollment, please try again!' + ` ${res.error}`
+                );
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error("Couldn't add data, try again later... :(");
+            isLoading.current = false;
+        }
+    }
 
     if (error) {
         return (
@@ -119,18 +201,18 @@ export default function Admin({
     }
 
     const formSchema = z.object({
-        enrollmentID: z.number(),
-        studentID: z
+        id: z.number(),
+        student_id: z
             .string({
                 required_error: 'Student ID is required.',
             })
             .min(1, 'Student ID is required.'),
-        courseID: z
+        course_id: z
             .string({
                 required_error: 'Course ID is required.',
             })
             .min(1, 'Course ID is required.'),
-        enrollmentDate: z.date({
+        enrollmentdate: z.date({
             required_error: 'An enrollment date is required.',
         }),
         status: z
@@ -146,12 +228,12 @@ export default function Admin({
 
         const formatted = {
             ...values,
-            dob: values.enrollmentDate.toISOString().split('T')[0],
+            dob: values.enrollmentdate.toISOString().split('T')[0],
         };
 
         try {
             await fetch(
-                `http://localhost:3000/api/admin/enrollmentData/${formatted.studentID}`,
+                `http://localhost:3000/api/admin/enrollmentData/${formatted.id}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -170,10 +252,10 @@ export default function Admin({
         }
     }
 
-    async function deleteData(studentID: number) {
+    async function deleteData(id: number) {
         try {
             await fetch(
-                `http://localhost:3000/api/admin/enrollmentData/${studentID}`,
+                `http://localhost:3000/api/admin/enrollmentData/${id}`,
                 {
                     method: 'DELETE',
                 }
@@ -182,48 +264,46 @@ export default function Admin({
             refetch();
         } catch (error) {
             console.error('Error:', error);
-            toast.error("Couldn't delete student, try again later... :(");
+            toast.error("Couldn't delete enrollment, try again later... :(");
         }
     }
 
     const columns: ColumnDef<EnrollmentData>[] = [
         {
-            accessorKey: 'enrollmentID',
+            accessorKey: 'id',
             header: () => {
                 return <div className="text-center">ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">
-                    {row.getValue('enrollmentID')}
-                </div>
+                <div className="text-center">{row.getValue('id')}</div>
             ),
         },
         {
-            accessorKey: 'studentID',
+            accessorKey: 'student_id',
             header: () => {
                 return <div className="text-center">Student ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('studentID')}</div>
+                <div className="text-center">{row.getValue('student_id')}</div>
             ),
         },
         {
-            accessorKey: 'courseID',
+            accessorKey: 'course_id',
             header: () => {
                 return <div className="text-center">Course ID</div>;
             },
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('courseID')}</div>
+                <div className="text-center">{row.getValue('course_id')}</div>
             ),
         },
         {
-            accessorKey: 'enrollmentDate',
+            accessorKey: 'enrollmentdate',
             header: () => {
                 return <div className="text-center">Enrollment Date</div>;
             },
             cell: ({ row }) => (
                 <div className="text-center">
-                    {APIdateFormatter(new Date(row.getValue('enrollmentDate')))}
+                    {APIdateFormatter(new Date(row.getValue('enrollmentdate')))}
                 </div>
             ),
         },
@@ -231,14 +311,18 @@ export default function Admin({
             accessorKey: 'status',
             header: () => <div className="text-center">Status</div>,
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('status')}</div>
+                <div className="text-center capitalize">
+                    {row.getValue('status')}
+                </div>
             ),
         },
         {
             accessorKey: 'grade',
             header: () => <div className="text-center">Grade</div>,
             cell: ({ row }) => (
-                <div className="text-center">{row.getValue('grade') ? row.getValue('grade') : '-' }</div>
+                <div className="text-center">
+                    {row.getValue('grade') ? row.getValue('grade') : '-'}
+                </div>
             ),
         },
         {
@@ -250,12 +334,12 @@ export default function Admin({
                 const form = useForm<z.infer<typeof formSchema>>({
                     resolver: zodResolver(formSchema),
                     defaultValues: {
-                        enrollmentID: row.original.enrollmentID,
-                        studentID: row.original.studentID.toString(),
-                        courseID: row.original.courseID.toString(),
+                        id: row.original.id,
+                        student_id: row.original.student_id.toString(),
+                        course_id: row.original.course_id.toString(),
                         grade: row.original.grade,
                         status: row.original.status,
-                        enrollmentDate: new Date(row.original.enrollmentDate),
+                        enrollmentdate: new Date(row.original.enrollmentdate),
                     },
                 });
 
@@ -303,7 +387,7 @@ export default function Admin({
                                             <AlertDialogDescription>
                                                 This action cannot be undone.
                                                 This will permanently delete the
-                                                student.
+                                                enrollment.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -316,9 +400,7 @@ export default function Admin({
                                             </AlertDialogCancel>
                                             <AlertDialogAction
                                                 onClick={() =>
-                                                    deleteData(
-                                                        row.original.studentID
-                                                    )
+                                                    deleteData(row.original.id)
                                                 }
                                             >
                                                 Continue
@@ -344,7 +426,7 @@ export default function Admin({
                                     >
                                         <FormField
                                             control={form.control}
-                                            name="enrollmentID"
+                                            name="id"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96 hidden">
                                                     <FormLabel className="ml-2">
@@ -358,7 +440,7 @@ export default function Admin({
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="studentID"
+                                            name="student_id"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96">
                                                     <FormLabel className="ml-2">
@@ -373,7 +455,7 @@ export default function Admin({
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="courseID"
+                                            name="course_id"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96">
                                                     <FormLabel className="ml-2">
@@ -388,7 +470,7 @@ export default function Admin({
                                         />
                                         <FormField
                                             control={form.control}
-                                            name="enrollmentDate"
+                                            name="enrollmentdate"
                                             render={({ field }) => (
                                                 <FormItem className="flex flex-col">
                                                     <FormLabel>
@@ -470,18 +552,27 @@ export default function Admin({
                                                         }
                                                     >
                                                         <FormControl>
-                                                            <SelectTrigger className='cursor-pointer'>
+                                                            <SelectTrigger className="cursor-pointer">
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="active" className='cursor-pointer'>
+                                                            <SelectItem
+                                                                value="active"
+                                                                className="cursor-pointer"
+                                                            >
                                                                 Active
                                                             </SelectItem>
-                                                            <SelectItem value="completed" className='cursor-pointer'>
+                                                            <SelectItem
+                                                                value="completed"
+                                                                className="cursor-pointer"
+                                                            >
                                                                 Completed
                                                             </SelectItem>
-                                                            <SelectItem value="failed" className='cursor-pointer'>
+                                                            <SelectItem
+                                                                value="failed"
+                                                                className="cursor-pointer"
+                                                            >
                                                                 Failed
                                                             </SelectItem>
                                                         </SelectContent>
@@ -527,13 +618,193 @@ export default function Admin({
     ];
     return (
         <div>
-            <Input
-                placeholder="Filter by enrollment ID..."
-                // value={search ?? ""}
-                // onChange={(e: any) => setSearch(e.target.value)}
-                className="w-80 md:w-96 my-4"
-                // <ServerSidePagination totalCount={data.total_count ? data.total_count > 0 ? data.total_count : 1 : 1} dirty={dirty} setDirty={setDirty} />
-            />
+            <div className="flex gap-4 my-4">
+                <Input
+                    placeholder="Filter by enrollment ID..."
+                    value={search ?? ''}
+                    onChange={(e: any) => setSearch(e.target.value)}
+                    className="w-80 md:w-96"
+                />
+                {/* Add Enrollments Dialog */}
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button>Add Enrollment</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Enrollment Details</DialogTitle>
+                            <DialogDescription>
+                                Add Enrollment details here. Click save when
+                                you're done.
+                                <span className='italic underline block'>
+                                    Note: Student ID and Course ID must exist!
+                                </span>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...addForm}>
+                            <form
+                                onSubmit={addForm.handleSubmit(onAddSubmit)}
+                                className="w-96 space-y-6 mx-auto"
+                            >
+                                <FormField
+                                    control={addForm.control}
+                                    name="student_id"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Student ID
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="course_id"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Course ID
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="enrollmentdate"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>
+                                                Enrollment Date
+                                            </FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                            variant={'outline'}
+                                                            className={cn(
+                                                                'w-[240px] pl-3 text-left font-normal',
+                                                                !field.value &&
+                                                                    'text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            {field.value ? (
+                                                                format(
+                                                                    field.value,
+                                                                    'PPP'
+                                                                )
+                                                            ) : (
+                                                                <span>
+                                                                    Pick a date
+                                                                </span>
+                                                            )}
+                                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent
+                                                    className="w-auto p-0"
+                                                    align="start"
+                                                >
+                                                    <Calendar
+                                                        mode="single"
+                                                        selected={field.value}
+                                                        onSelect={
+                                                            field.onChange
+                                                        }
+                                                        disabled={(date) =>
+                                                            date > new Date() ||
+                                                            date <
+                                                                new Date(
+                                                                    '1900-01-01'
+                                                                )
+                                                        }
+                                                        initialFocus
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="status"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Status</FormLabel>
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="cursor-pointer">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem
+                                                        value="active"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Active
+                                                    </SelectItem>
+                                                    <SelectItem
+                                                        value="completed"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Completed
+                                                    </SelectItem>
+                                                    <SelectItem
+                                                        value="failed"
+                                                        className="cursor-pointer"
+                                                    >
+                                                        Failed
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="grade"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Grade
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <DialogFooter>
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading.current}
+                                        className="disabled:cursor-not-allowed cursor-pointer"
+                                    >
+                                        {isLoading.current
+                                            ? 'Loading...'
+                                            : 'Save changes'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+            </div>
             <DataTable columns={columns} data={data} />
         </div>
     );

@@ -16,6 +16,7 @@ import * as z from 'zod';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ModeToggle } from '@/components/ModeToggle';
+import { toast } from 'sonner';
 
 const loginSchema = z.object({
     email: z.string().email(),
@@ -49,12 +50,13 @@ export default function Login() {
 
             if (!res.ok) {
                 const err = await res.json();
-                setErrorMsg(err.message || 'Login failed');
+                setErrorMsg(err.error || 'Login failed');
                 return;
             }
 
             const result = await res.json();
             console.log('Login success', result);
+            
             if (result.isAdmin) {
                 router.push('/admin');
             } else {

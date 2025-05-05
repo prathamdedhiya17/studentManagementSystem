@@ -1,33 +1,86 @@
+import { NextRequest } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+
 export async function GET() {
-    const students = [
-        {
-            studentID: 1,
-            name: 'Alice Johnson',
-            email: 'alice.j@iu.edu',
-            dob: '2004-05-12',
-            enrollments: ['Deep Learning', 'Applied Database Technologies'],
-            gpa: 3.7,
-            password: 'Abcd@123',
-        },
-        {
-            studentID: 2,
-            name: 'Bob Smith',
-            email: 'bob.smith@iu.edu',
-            dob: '2003-09-20',
-            enrollments: ['Statistics', 'Applied Machine Learning'],
-            gpa: 3.2,
-            password: 'Abcd@123',
-        },
-        {
-            studentID: 3,
-            name: 'Carol Diaz',
-            dob: '2005-02-28',
-            email: 'carol.diaz@example.com',
-            enrollments: ['Statistics', 'Applied Machine Learning'],
-            gpa: 3.5,
-            password: 'Abcd@123',
-        },
-    ];
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.from('students').select(`
+      id,
+      studentid,
+      name,
+      email,
+      dob,
+      gpa,
+      password,
+      enrollments (
+        courses (
+          courseid
+        )
+      )
+    `).limit(1000);
+
+    if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+        });
+    }
+
+    // Transform the data into your desired format
+    const students = data.map((student) => ({
+        id: student.id,
+        studentid: student.studentid,
+        name: student.name,
+        email: student.email,
+        dob: student.dob,
+        gpa: student.gpa,
+        password: student.password,
+        enrollments: student.enrollments
+            .map((enroll: any) => enroll.courses?.courseid)
+            .filter((id: string | null) => id !== null),
+    }));
+
+    return Response.json(students);
+}
+
+export async function POST(request: NextRequest) {
+    const body = await request.json();
+    const search = body.search;
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.from('students').select(`
+      id,
+      studentid,
+      name,
+      email,
+      dob,
+      gpa,
+      password,
+      enrollments (
+        courses (
+          courseid
+        )
+      )
+    `).ilike('name', `%${search}%`).limit(1000);
+
+    if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+        });
+    }
+
+    // Transform the data into your desired format
+    const students = data.map((student) => ({
+        id: student.id,
+        studentid: student.studentid,
+        name: student.name,
+        email: student.email,
+        dob: student.dob,
+        gpa: student.gpa,
+        password: student.password,
+        enrollments: student.enrollments
+            .map((enroll: any) => enroll.courses?.courseid)
+            .filter((id: string | null) => id !== null),
+    }));
 
     return Response.json(students);
 }

@@ -1,14 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // UI Imports
-import {
-    Ellipsis,
-    Pencil,
-    Trash2Icon,
-} from 'lucide-react';
-import TableSkeleton from '@/app/utils/loadingUtils/TableSkeleton';
+import { Ellipsis, Pencil, Trash2Icon } from 'lucide-react';
+import TableSkeleton from '@/utils/loadingUtils/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -57,13 +53,11 @@ import {
 
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/datatableComponent/DataTable';
-
-export const metadata = {
-    title: 'Admin',
-};
+import { useDebounce } from '@/utils/customHooks/useDebounce';
 
 type Course = {
-    courseID: number;
+    id: number;
+    courseid: string;
     name: string;
     program: string;
     sem: string;
@@ -76,9 +70,21 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
     const [error, setError] = useState(false);
     const isLoading = useRef(false);
 
+    const [search, setSearch] = useState('');
+    const debouncedSearch = useDebounce(search);
+
     const refetch = async () => {
         setLoading(true);
-        const res = await fetch('http://localhost:3000/api/admin/courses');
+        const res =
+            debouncedSearch.length > 0
+                ? await fetch('http://localhost:3000/api/admin/courses', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({ search: debouncedSearch }),
+                  })
+                : await fetch('http://localhost:3000/api/admin/courses');
 
         if (!res.ok) {
             setError(true);
@@ -88,6 +94,77 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
         setData(updated);
         setLoading(false);
     };
+
+    useEffect(() => {
+        refetch();
+    }, [debouncedSearch]);
+
+    const addFormSchema = z.object({
+        courseid: z
+            .string({
+                required_error: 'Course ID is required.',
+            })
+            .min(1, 'Course ID is required.'),
+        name: z
+            .string({
+                required_error: 'Name is required.',
+            })
+            .min(1, 'Name is required.'),
+        program: z
+            .string({
+                required_error: 'Program is required.',
+            })
+            .min(1, 'Program is required.'),
+        sem: z
+            .string({
+                required_error: 'Sem is required.',
+            })
+            .min(1, 'Sem is required.'),
+        desc: z
+            .string({
+                required_error: 'Course description is required.',
+            })
+            .min(1, 'Course description is required.'),
+    });
+
+    const addForm = useForm<z.infer<typeof addFormSchema>>({
+        resolver: zodResolver(addFormSchema),
+        defaultValues: {
+            courseid: '',
+            name: '',
+            program: '',
+            sem: '',
+            desc: '',
+        },
+    });
+
+    
+    async function onAddSubmit(values: z.infer<typeof addFormSchema>) {
+        isLoading.current = true;
+
+        try {
+            const res = await fetch(`http://localhost:3000/api/admin/courses/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values),
+            }).then((data) => data.json());
+
+            isLoading.current = false;
+            if (res.success) {
+                toast.success('Course Added Successfully!');
+                addForm.reset();
+                refetch();
+            } else {
+                toast.error('There was some error adding course, please try again!');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            toast.error("Couldn't add data, try again later... :(");
+            isLoading.current = false;
+        }
+    }
 
     if (error) {
         return (
@@ -101,32 +178,41 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
         return <TableSkeleton />;
     }
 
-    const formSchema = z
-        .object({
-            courseID: z.number(),
-            name: z.string({
+    const formSchema = z.object({
+        id: z.number(),
+        courseid: z
+            .string({
+                required_error: 'Course ID is required.',
+            })
+            .min(1, 'Course ID is required.'),
+        name: z
+            .string({
                 required_error: 'Name is required.',
-            }).min(1, 'Name is required.'),
-            program: z
-                .string({
-                    required_error: 'Program is required.',
-                }).min(1, 'Program is required.'),
-            sem: z
+            })
+            .min(1, 'Name is required.'),
+        program: z
+            .string({
+                required_error: 'Program is required.',
+            })
+            .min(1, 'Program is required.'),
+        sem: z
             .string({
                 required_error: 'Sem is required.',
-            }).min(1, 'Sem is required.'),
-            desc: z
+            })
+            .min(1, 'Sem is required.'),
+        desc: z
             .string({
                 required_error: 'Course description is required.',
-            }).min(1, 'Course description is required.'),
-        })
+            })
+            .min(1, 'Course description is required.'),
+    })
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         isLoading.current = true;
 
         try {
-            await fetch(
-                `http://localhost:3000/api/admin/courses/${values.courseID}`,
+            const res = await fetch(
+                `http://localhost:3000/api/admin/courses/${values.id}`,
                 {
                     method: 'PUT',
                     headers: {
@@ -135,9 +221,13 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                     body: JSON.stringify(values),
                 }
             ).then((data) => data.json());
-            toast.success('Course Updated Successfully!');
             isLoading.current = false;
-            refetch();
+            if (res.success) {
+                toast.success('Course Updated Successfully!');
+                refetch();
+            } else {
+                toast.error('There was some error updating course, please try again!');
+            }
         } catch (error) {
             console.error('Error:', error);
             toast.error("Couldn't update data, try again later... :(");
@@ -145,13 +235,17 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
         }
     }
 
-    async function deleteData(courseID: number) {
+    async function deleteData(id: number) {
         try {
-            await fetch(`http://localhost:3000/api/admin/courses/${courseID}`, {
+            const res = await fetch(`http://localhost:3000/api/admin/courses/${id}`, {
                 method: 'DELETE',
             }).then((data) => data.json());
-            toast.success('Course deleted successfully!');
-            refetch();
+            if (res.success) {
+                toast.success('Course deleted Successfully!');
+                refetch();
+            } else {
+                toast.error('There was some error updating course, please try again!');
+            }
         } catch (error) {
             console.error('Error:', error);
             toast.error("Couldn't delete course, try again later... :(");
@@ -160,13 +254,13 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
 
     const columns: ColumnDef<Course>[] = [
         {
-            accessorKey: 'courseID',
+            accessorKey: 'courseid',
             header: () => {
-                return <div className="text-center">ID</div>;
+                return <div className="text-center">Course ID</div>;
             },
             cell: ({ row }) => (
                 <div className="text-center capitalize">
-                    {row.getValue('courseID')}
+                    {row.getValue('courseid')}
                 </div>
             ),
         },
@@ -213,7 +307,8 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                 const form = useForm<z.infer<typeof formSchema>>({
                     resolver: zodResolver(formSchema),
                     defaultValues: {
-                        courseID: row.original.courseID,
+                        id: row.original.id,
+                        courseid: row.original.courseid,
                         name: row.original.name,
                         program: row.original.program,
                         sem: row.original.sem,
@@ -264,8 +359,8 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                                             </AlertDialogTitle>
                                             <AlertDialogDescription>
                                                 This action cannot be undone.
-                                                This will permanently delete
-                                                the course.
+                                                This will permanently delete the
+                                                course.
                                             </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -278,7 +373,7 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                                             </AlertDialogCancel>
                                             <AlertDialogAction
                                                 onClick={() =>
-                                                    deleteData(row.original.courseID)
+                                                    deleteData(row.original.id)
                                                 }
                                             >
                                                 Continue
@@ -304,11 +399,25 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
                                     >
                                         <FormField
                                             control={form.control}
-                                            name="courseID"
+                                            name="id"
                                             render={({ field }) => (
                                                 <FormItem className="max-w-96 hidden">
                                                     <FormLabel className="ml-2">
-                                                        courseID
+                                                        ID
+                                                    </FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} />
+                                                    </FormControl>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="courseid"
+                                            render={({ field }) => (
+                                                <FormItem className="max-w-96">
+                                                    <FormLabel className="ml-2">
+                                                        Course ID
                                                     </FormLabel>
                                                     <FormControl>
                                                         <Input {...field} />
@@ -399,15 +508,127 @@ export default function Admin({ initialData }: { initialData: Course[] }) {
             },
         },
     ];
+
     return (
         <div>
-            <Input
-                placeholder="Filter by name..."
-                // value={search ?? ""}
-                // onChange={(e: any) => setSearch(e.target.value)}
-                className="w-80 md:w-96 my-4"
-                // <ServerSidePagination totalCount={data.total_count ? data.total_count > 0 ? data.total_count : 1 : 1} dirty={dirty} setDirty={setDirty} />
-            />
+            <div className="flex gap-4 my-4">
+                <Input
+                    placeholder="Filter by name..."
+                    value={search ?? ''}
+                    onChange={(e: any) => setSearch(e.target.value)}
+                    className="w-80 md:w-96"
+                />
+                {/* Add Course Dialog */}
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button>Add Course</Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add Course Details</DialogTitle>
+                            <DialogDescription>
+                                Add Course details here. Click save when you're
+                                done.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <Form {...addForm}>
+                            <form
+                                onSubmit={addForm.handleSubmit(onAddSubmit)}
+                                className="w-96 space-y-6 mx-auto"
+                            >
+                                <FormField
+                                    control={addForm.control}
+                                    name="courseid"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Course ID
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="name"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Name
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="program"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Program
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="sem"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Sem
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Input {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={addForm.control}
+                                    name="desc"
+                                    render={({ field }) => (
+                                        <FormItem className="max-w-96">
+                                            <FormLabel className="ml-2">
+                                                Description
+                                            </FormLabel>
+                                            <FormControl>
+                                                <Textarea
+                                                    {...field}
+                                                    className="h-24"
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <DialogFooter>
+                                    <Button
+                                        type="submit"
+                                        disabled={isLoading.current}
+                                        className="disabled:cursor-not-allowed cursor-pointer"
+                                    >
+                                        {isLoading.current
+                                            ? 'Loading...'
+                                            : 'Save changes'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </Form>
+                    </DialogContent>
+                </Dialog>
+            </div>
             <DataTable columns={columns} data={data} />
         </div>
     );

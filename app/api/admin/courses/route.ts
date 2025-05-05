@@ -1,27 +1,34 @@
+import { NextRequest } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+
 export async function GET() {
-    const courses = [
-        {
-            courseID: 1,
-            name: 'Intro to Computer Science',
-            program: 'Computer Science',
-            sem: 'Fall 2025',
-            desc: 'Fundamentals of computer science.',
-        },
-        {
-            courseID: 2,
-            name: 'Data Structures',
-            program: 'Computer Science',
-            sem: 'Spring 2026',
-            desc: 'Linked lists, trees, and more.',
-        },
-        {
-            courseID: 3,
-            name: 'Digital Circuits',
-            program: 'Electrical Engineering',
-            sem: 'Fall 2025',
-            desc: 'Logic gates and circuit analysis.',
-        },
-    ];
+    const supabase = await createClient();
+    const { data: courses, error } = await supabase.from('courses').select().limit(1000);
+
+    if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+        });
+    }
+
+    return Response.json(courses);
+}
+
+export async function POST(request: NextRequest) {
+    const body = await request.json();
+    const search = body.search;
+
+    const supabase = await createClient();
+    const { data: courses, error } = await supabase
+        .from('courses')
+        .select()
+        .ilike('name', `%${search}%`).limit(1000);
+
+    if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+        });
+    }
 
     return Response.json(courses);
 }
